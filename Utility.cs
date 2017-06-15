@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,8 +15,7 @@ namespace CaseConverter
 
 		public static List<string> GetExcelFiles()
 		{
-			List<string> result = new List<string>();
-			return result;
+            return Directory.GetFiles(Environment.CurrentDirectory, "*_SSD.xlsx").ToList();
 		}
 
 		public static void CreateOutputFiles(DataTable dt, string outputFolder)
@@ -28,6 +28,33 @@ namespace CaseConverter
 			sbLog.AppendLine(s);
 		}
 
+        public static void OutputLogToFile()
+        {
+            string logFile = "cc_" + DateTime.Now.ToString("s").Replace("-","").Replace(":","") + ".log";
+            if (File.Exists(logFile))
+            {
+                File.Delete(logFile);
+            }
+            try
+            {
+                using (StreamWriter sw = new StreamWriter(logFile))
+                {
+                    sw.Write(sbLog.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to write log in file.\n");
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine();
+            }
+        }
+
+        /// <summary>
+        /// Open each one by one, select * from sheet1 where type <> 'C' and action <> 'wait' ...
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <returns></returns>
 		public static DataTable ReadInputFile(string filename)
 		{
 			DataTable result = new DataTable();
