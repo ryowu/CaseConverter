@@ -17,6 +17,7 @@ namespace CaseConverter
             {
                 Utility.AddLog("Start to process, time:" + DateTime.Now.ToString("s"));
 
+
                 //Get all excel files from current folder
                 List<string> files = Utility.GetExcelFiles();
 
