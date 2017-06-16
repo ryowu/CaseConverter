@@ -166,7 +166,8 @@ namespace CaseConverter
                     col4LowerValue.StartsWith("windowclose") ||
                     col4LowerValue.StartsWith("comment") ||
                     col4LowerValue.StartsWith("portal") ||
-                    col4LowerValue.StartsWith("attach"))
+                    col4LowerValue.StartsWith("attach") ||
+                    col4LowerValue.StartsWith("storemessage"))
                 {
                     continue;
                 }
@@ -202,6 +203,10 @@ namespace CaseConverter
                     {
                         sbSteps.AppendLine("Launch Aprimo Portal");
                     }
+                    else if (col4LowerValue.Equals("LaunchMobileApp", StringComparison.OrdinalIgnoreCase))
+                    {
+                        sbSteps.AppendLine("Launch Aprimo Mobile");
+                    }
                     else if (col4LowerValue.Equals("LogOutExit", StringComparison.OrdinalIgnoreCase))
                     {
                         sbSteps.AppendLine("Log off current user");
@@ -228,7 +233,14 @@ namespace CaseConverter
                     }
                     else
                     {
-                        throw new Exception("Unhandled col4LowerValue:" + col4LowerValue);
+                        if (string.IsNullOrEmpty(col4LowerValue) && string.IsNullOrEmpty(col5RawValue))
+                        {
+                            //AddLog("The values in colum 4 and 5 are both empty, " + string.Join(";", row.ItemArray));
+                        }
+                        else
+                        {
+                            throw new Exception("Unhandled col4LowerValue:" + col4LowerValue);
+                        }
                     }
 
                     if (verifyFlag)

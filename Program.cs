@@ -17,7 +17,6 @@ namespace CaseConverter
             {
                 Utility.AddLog("Start to process, time:" + DateTime.Now.ToString("s"));
 
-
                 //Get all excel files from current folder
                 List<string> files = Utility.GetExcelFiles();
 
@@ -43,10 +42,10 @@ namespace CaseConverter
 
                     //Create new excel and insert the data
                     Utility.CreateOutputFiles(outputData, outputFolder);
-                    Utility.AddLog(string.Format("Complete {0}", f));
+                    Utility.AddLog(string.Format("Complete {0}\n", f));
                 });
 
-                Utility.AddLog("All done, time:" + DateTime.Now.ToString("s"));
+                Utility.AddLog(string.Format("All done, processed file count: {0}, time: {1}", files.Count.ToString(), DateTime.Now.ToString("s")));
             }
             catch (Exception ex)
             {
