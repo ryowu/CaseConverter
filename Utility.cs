@@ -109,7 +109,7 @@ namespace CaseConverter
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("Failed to write log in file.\n");
+				Console.WriteLine("Failed to write log in file.\r\n");
 				Console.WriteLine(ex.ToString());
 				Console.WriteLine();
 			}
@@ -155,104 +155,111 @@ namespace CaseConverter
 
             foreach (DataRow row in inputData.Rows)
             {
-                col4LowerValue = row[4].ToString().Trim().ToLower();
-
-                #region skip specific rows
-                if (row[1].ToString().Trim().Equals("C", StringComparison.OrdinalIgnoreCase) ||
-                    col4LowerValue.StartsWith("wait") ||
-                    col4LowerValue.StartsWith("handleajax") ||
-                    col4LowerValue.StartsWith("basicmode") ||
-                    col4LowerValue.StartsWith("closebrowser") ||
-                    col4LowerValue.StartsWith("windowclose") ||
-                    col4LowerValue.StartsWith("comment") ||
-                    col4LowerValue.StartsWith("portal") ||
-                    col4LowerValue.StartsWith("attach") ||
-                    col4LowerValue.StartsWith("storemessage"))
+                try
                 {
-                    continue;
-                }
-                #endregion
+                    col4LowerValue = row[4].ToString().Trim().ToLower();
 
-                col5RawValue = row[5].ToString();
-                col6RawValue = row[6].ToString();
-                col6TranslatedValue = TranslateColumn5Value(col6RawValue);
+                    #region skip specific rows
+                    if (row[1].ToString().Trim().Equals("C", StringComparison.OrdinalIgnoreCase) ||
+                        col4LowerValue.StartsWith("wait") ||
+                        col4LowerValue.StartsWith("handleajax") ||
+                        col4LowerValue.StartsWith("basicmode") ||
+                        col4LowerValue.StartsWith("closebrowser") ||
+                        col4LowerValue.StartsWith("windowclose") ||
+                        col4LowerValue.StartsWith("comment") ||
+                        col4LowerValue.StartsWith("portal") ||
+                        col4LowerValue.StartsWith("attach") ||
+                        col4LowerValue.StartsWith("storemessage"))
+                    {
+                        continue;
+                    }
+                    #endregion
 
-                #region verifications
-                if (col4LowerValue.StartsWith("Verify", StringComparison.OrdinalIgnoreCase))
-                {
-                    sbVerifications.AppendLine(TranslateCheckPointString(col5RawValue, col6RawValue,
-                        col4LowerValue.StartsWith("VerifyNo", StringComparison.OrdinalIgnoreCase)));
-                    if (stepFlag)
+                    col5RawValue = row[5].ToString();
+                    col6RawValue = row[6].ToString();
+                    col6TranslatedValue = TranslateColumn5Value(col6RawValue);
+
+                    #region verifications
+                    if (col4LowerValue.StartsWith("Verify", StringComparison.OrdinalIgnoreCase))
                     {
-                        // insert all step strings
-                        result.Rows.Add(sbSteps.ToString(), "");
-                        sbSteps.Clear();
+                        sbVerifications.AppendLine(TranslateCheckPointString(col5RawValue, col6RawValue,
+                            col4LowerValue.StartsWith("VerifyNo", StringComparison.OrdinalIgnoreCase)));
+                        if (stepFlag)
+                        {
+                            // insert all step strings
+                            result.Rows.Add(sbSteps.ToString().TrimEnd(), "");
+                            sbSteps.Clear();
+                        }
+                        verifyFlag = true;
+                        stepFlag = false;
                     }
-                    verifyFlag = true;
-                    stepFlag = false;
-                }
-                #endregion
-                #region steps
-                else
-                {
-                    if (col4LowerValue.Equals("LaunchApp", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Launch Aprimo Marketing");
-                    }
-                    else if (col4LowerValue.Equals("LaunchPortal", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Launch Aprimo Portal");
-                    }
-                    else if (col4LowerValue.Equals("LaunchMobileApp", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Launch Aprimo Mobile");
-                    }
-                    else if (col4LowerValue.Equals("LogOutExit", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Log off current user");
-                    }
-                    else if (col4LowerValue.Equals("EnterData", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Enter data, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
-                    }
-                    else if (col4LowerValue.Equals("EnterComboText", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Select combobox, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
-                    }
-                    else if (col4LowerValue.StartsWith("ClickItem", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Click \"" + col5RawValue + "\"");
-                    }
-                    else if (col4LowerValue.StartsWith("ClickLink", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Click link \"" + col5RawValue + "\"");
-                    }
-                    else if (col4LowerValue.Equals("SelectItem", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sbSteps.AppendLine("Select \"" + col5RawValue + "\"");
-                    }
+                    #endregion
+                    #region steps
                     else
                     {
-                        if (string.IsNullOrEmpty(col4LowerValue) && string.IsNullOrEmpty(col5RawValue))
+                        if (col4LowerValue.Equals("LaunchApp", StringComparison.OrdinalIgnoreCase))
                         {
-                            //AddLog("The values in colum 4 and 5 are both empty, " + string.Join(";", row.ItemArray));
+                            sbSteps.AppendLine("Launch Aprimo Marketing");
+                        }
+                        else if (col4LowerValue.Equals("LaunchPortal", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Launch Aprimo Portal");
+                        }
+                        else if (col4LowerValue.Equals("LaunchMobileApp", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Launch Aprimo Mobile");
+                        }
+                        else if (col4LowerValue.Equals("LogOutExit", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Log off current user");
+                        }
+                        else if (col4LowerValue.Equals("EnterData", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Enter data, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
+                        }
+                        else if (col4LowerValue.Equals("EnterComboText", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Select combobox, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
+                        }
+                        else if (col4LowerValue.StartsWith("ClickItem", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Click \"" + col5RawValue + "\"");
+                        }
+                        else if (col4LowerValue.StartsWith("ClickLink", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Click link \"" + col5RawValue + "\"");
+                        }
+                        else if (col4LowerValue.Equals("SelectItem", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Select \"" + col5RawValue + "\"");
                         }
                         else
                         {
-                            throw new Exception("Unhandled col4LowerValue:" + col4LowerValue);
+                            if (string.IsNullOrEmpty(col4LowerValue) && string.IsNullOrEmpty(col5RawValue))
+                            {
+                                //AddLog("The values in colum 4 and 5 are both empty, " + string.Join(";", row.ItemArray));
+                            }
+                            else
+                            {
+                                throw new Exception("Unhandled col4LowerValue:" + col4LowerValue);
+                            }
                         }
-                    }
 
-                    if (verifyFlag)
-                    {
-                        // insert all verification strings
-                        result.Rows[result.Rows.Count - 1][1] = sbVerifications.ToString();
-                        sbVerifications.Clear();
+                        if (verifyFlag)
+                        {
+                            // insert all verification strings
+                            result.Rows[result.Rows.Count - 1][1] = sbVerifications.ToString().TrimEnd();
+                            sbVerifications.Clear();
+                        }
+                        verifyFlag = false;
+                        stepFlag = true;
                     }
-                    verifyFlag = false;
-                    stepFlag = true;
+                    #endregion
                 }
-                #endregion
+                catch (Exception ex)
+                {
+                    throw new Exception("Found exception, row number:" + row[0].ToString(), ex);
+                }
             }
             result.TableName = inputData.TableName;
             return result;
@@ -276,11 +283,11 @@ namespace CaseConverter
             string result = null;
             if (array.Length > 1)
             {
-                result = array[0] + ": " + TranslateColumn5Value(array[1]);
+                result = array[0] + ": \"" + TranslateColumn5Value(array[1]) + "\"";
             }
             else
             {
-                result = array[0];
+                result = "\"" + TranslateColumn5Value(array[0]) + "\"";
             }
             //string tmp = col5Value;
             //if (col5Value.Equals("PageContent", StringComparison.OrdinalIgnoreCase))
@@ -292,7 +299,7 @@ namespace CaseConverter
             //    tmp = "page title";
             //}
             //return "Verify " + tmp + ": " + result + (isVerifyNo? " IS NOT displayed" : " is displayed");
-            return "Verify " + result + (isVerifyNo ? " IS NOT displayed" : " is displayed");
+            return "Verify " + result + (isVerifyNo ? " IS NOT displaying" : " is displaying");
         }
 
 		private static string GetExcelConnectionString(string fileName)
@@ -300,8 +307,7 @@ namespace CaseConverter
 			//return "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + fileName + ";Extended Properties=Excel 12.0;";
 			return @"Provider=Microsoft.Jet.OLEDB.4.0;" +
 				   @"Data Source=" + fileName + ";" +
-				   @"Extended Properties=" + Convert.ToChar(34).ToString() +
-				   @"Excel 8.0" + Convert.ToChar(34).ToString() + ";";
+                   @"Extended Properties='Excel 8.0;IMEX=1;'";
 		}
 	}
 }

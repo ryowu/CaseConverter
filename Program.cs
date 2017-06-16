@@ -42,14 +42,14 @@ namespace CaseConverter
 
                     //Create new excel and insert the data
                     Utility.CreateOutputFiles(outputData, outputFolder);
-                    Utility.AddLog(string.Format("Complete {0}\n", f));
+                    Utility.AddLog(string.Format("Complete {0}\r\n", f));
                 });
 
                 Utility.AddLog(string.Format("All done, processed file count: {0}, time: {1}", files.Count.ToString(), DateTime.Now.ToString("s")));
             }
             catch (Exception ex)
             {
-                Utility.AddLog("Found exception:\n\n" + ex.ToString() + "\n");
+                Utility.AddLog("Found exception:\r\n\r\n" + ex.ToString() + "\r\n");
             }
             finally
             {
