@@ -5,115 +5,119 @@ using System.Data.OleDb;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace CaseConverter
 {
-	public class Utility
-	{
-		//log
-		private static StringBuilder sbLog = new StringBuilder();
+    public class Utility
+    {
+        //log
+        private static StringBuilder sbLog = new StringBuilder();
 
-		public static List<string> GetExcelFiles()
-		{
-			return Directory.GetFiles(Environment.CurrentDirectory, "*_SSD.xls").ToList();
-		}
+        public static List<string> GetExcelFiles()
+        {
+            return Directory.GetFiles(Environment.CurrentDirectory, "*_SSD.xls*").ToList();
+        }
 
-		private static void ExportToExcel(DataTable dt, string filepath)
-		{
+        public static void CreateOutputFiles(DataTable dt, string outputFolder)
+        {
+            string outputfileBaseName = Path.Combine(Environment.CurrentDirectory, "outputBase.xls");
+            string outputFilename = Path.Combine(outputFolder,
+                Program.OutputFilePrefix + (dt.TableName.ToLower().EndsWith(".xlsx") ? dt.TableName.Substring(0, dt.TableName.Length - 1) : dt.TableName));
+            //create new file
+            try
+            {
+                if (File.Exists(outputFilename))
+                {
+                    File.Delete(outputFilename);
+                }
+                File.Copy(outputfileBaseName, outputFilename);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Delete file or copy file template error, new file name path:\n" + outputFilename, ex);
+            }
 
-			/*Set up work book, work sheets, and excel application*/
-			Microsoft.Office.Interop.Excel.Application oexcel = new Microsoft.Office.Interop.Excel.Application();
-			try
-			{
-				string path = AppDomain.CurrentDomain.BaseDirectory;
-				object misValue = System.Reflection.Missing.Value;
-				Microsoft.Office.Interop.Excel.Workbook obook = oexcel.Workbooks.Add(misValue);
-				Microsoft.Office.Interop.Excel.Worksheet osheet = new Microsoft.Office.Interop.Excel.Worksheet();
+            ExportToExcel(dt, outputFilename);
+        }
 
+        private static void ExportToExcel(DataTable dt, string filePath)
+        {
+            Excel.Application excelApp = null;
+            Excel.Workbook excelWorkBook = null;
+            try
+            {
+                //Creae an Excel application instance
+                excelApp = new Excel.Application();
 
-				//  obook.Worksheets.Add(misValue);
+                //Create an Excel workbook instance and open it from the predefined location
+                excelWorkBook = excelApp.Workbooks.Open(filePath);
 
-				osheet = (Microsoft.Office.Interop.Excel.Worksheet)obook.Sheets["Test"];
-				int colIndex = 0;
-				int rowIndex = 1;
+                //Add a new worksheet to workbook with the Datatable name
+                Excel.Worksheet excelWorkSheet = excelWorkBook.Sheets.Add();
+                excelWorkSheet.Name = Program.DefaultSheetName;
 
-				foreach (DataColumn dc in dt.Columns)
-				{
-					colIndex++;
-					osheet.Cells[1, colIndex] = dc.ColumnName;
-				}
-				foreach (DataRow dr in dt.Rows)
-				{
-					rowIndex++;
-					colIndex = 0;
+                for (int i = 1; i < dt.Columns.Count + 1; i++)
+                {
+                    excelWorkSheet.Cells[1, i] = dt.Columns[i - 1].ColumnName;
+                }
 
-					foreach (DataColumn dc in dt.Columns)
-					{
-						colIndex++;
-						osheet.Cells[rowIndex, colIndex] = dr[dc.ColumnName];
-					}
-				}
+                for (int j = 0; j < dt.Rows.Count; j++)
+                {
+                    for (int k = 0; k < dt.Columns.Count; k++)
+                    {
+                        excelWorkSheet.Cells[j + 2, k + 1] = dt.Rows[j].ItemArray[k].ToString();
+                    }
+                }
 
-				osheet.Columns.AutoFit();
+                excelWorkBook.Save();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Export DateSet to Excel error, new file name path:\n" + filePath, ex);
+            }
+            finally
+            {
+                if (excelWorkBook != null)
+                {
+                    excelWorkBook.Close();
+                }
+                if (excelApp != null)
+                {
+                    excelApp.Quit();
+                }
+            }
+        }
 
-				//Release and terminate excel
+        public static void AddLog(string s)
+        {
+            Console.WriteLine(s);
+            sbLog.AppendLine(s);
+        }
 
-				obook.SaveAs(filepath);
-				obook.Close();
-				oexcel.Quit();
-				ReleaseObject(osheet);
-
-				ReleaseObject(obook);
-
-				ReleaseObject(oexcel);
-				GC.Collect();
-			}
-			catch (Exception ex)
-			{
-				oexcel.Quit();
-			}
-		}
-
-		private static void ReleaseObject(object o) { try { while (System.Runtime.InteropServices.Marshal.ReleaseComObject(o) > 0) { } } catch { } finally { o = null; } }
-
-		public static void CreateOutputFiles(DataTable dt, string outputFolder)
-		{
-			string outputfileBaseName = "outputBase.xls";
-			string outputFilename = Path.Combine(outputFolder, dt.TableName);
-			//create new file
-			File.Copy(outputfileBaseName, outputFilename);
-
-			ExportToExcel(dt, outputFilename);
-		}
-
-		public static void AddLog(string s)
-		{
-			Console.WriteLine(s);
-			sbLog.AppendLine(s);
-		}
-
-		public static void OutputLogToFile()
-		{
-			string logFile = "cc_" + DateTime.Now.ToString("s").Replace("-", "").Replace(":", "") + ".log";
-			if (File.Exists(logFile))
-			{
-				File.Delete(logFile);
-			}
-			try
-			{
-				using (StreamWriter sw = new StreamWriter(logFile))
-				{
-					sw.Write(sbLog.ToString());
-				}
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("Failed to write log in file.\r\n");
-				Console.WriteLine(ex.ToString());
-				Console.WriteLine();
-			}
-		}
+        public static void OutputLogToFile()
+        {
+            string logFile = "cc_" + DateTime.Now.ToString("s").Replace("-", "").Replace(":", "") + ".log";
+            if (File.Exists(logFile))
+            {
+                File.Delete(logFile);
+            }
+            try
+            {
+                using (StreamWriter sw = new StreamWriter(logFile))
+                {
+                    sw.Write(sbLog.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to write log in file.\r\n");
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine();
+            }
+        }
 
         /// <summary>
         /// Open each one by one, select * from sheet1
@@ -128,7 +132,7 @@ namespace CaseConverter
             using (var excelConnection = new OleDbConnection(excelConnectionString))
             {
                 excelConnection.Open();
-                var dataAdapter = new OleDbDataAdapter("SELECT * FROM [Test$]", excelConnection);
+                var dataAdapter = new OleDbDataAdapter("SELECT * FROM [" + Program.DefaultSheetName + "$]", excelConnection);
                 dataAdapter.Fill(dataTable);
                 dataTable.TableName = Path.GetFileName(filename);
                 excelConnection.Close();
@@ -141,8 +145,8 @@ namespace CaseConverter
         public static DataTable TranslateIntoHumanLanguage(DataTable inputData)
         {
             DataTable result = new DataTable();
-            result.Columns.Add(new DataColumn("steps", typeof(string)));
-            result.Columns.Add(new DataColumn("verifications", typeof(string)));
+            result.Columns.Add(new DataColumn(Program.ColName0, typeof(string)));
+            result.Columns.Add(new DataColumn(Program.ColName1, typeof(string)));
 
             StringBuilder sbSteps = new StringBuilder();
             StringBuilder sbVerifications = new StringBuilder();
@@ -161,15 +165,7 @@ namespace CaseConverter
 
                     #region skip specific rows
                     if (row[1].ToString().Trim().Equals("C", StringComparison.OrdinalIgnoreCase) ||
-                        col4LowerValue.StartsWith("wait") ||
-                        col4LowerValue.StartsWith("handleajax") ||
-                        col4LowerValue.StartsWith("basicmode") ||
-                        col4LowerValue.StartsWith("closebrowser") ||
-                        col4LowerValue.StartsWith("windowclose") ||
-                        col4LowerValue.StartsWith("comment") ||
-                        col4LowerValue.StartsWith("portal") ||
-                        col4LowerValue.StartsWith("attach") ||
-                        col4LowerValue.StartsWith("storemessage"))
+                        Program.SkipActions.Any(le => col4LowerValue.StartsWith(le)))
                     {
                         continue;
                     }
@@ -180,9 +176,10 @@ namespace CaseConverter
                     col6TranslatedValue = TranslateColumn5Value(col6RawValue);
 
                     #region verifications
-                    if (col4LowerValue.StartsWith("Verify", StringComparison.OrdinalIgnoreCase))
+                    if (col4LowerValue.StartsWith("Verify", StringComparison.OrdinalIgnoreCase) ||
+                        col4LowerValue.StartsWith("ChkPropIncludes", StringComparison.OrdinalIgnoreCase))
                     {
-                        sbVerifications.AppendLine(TranslateCheckPointString(col5RawValue, col6RawValue,
+                        sbVerifications.AppendLine(TranslateCheckPointString(col4LowerValue, col5RawValue, col6RawValue,
                             col4LowerValue.StartsWith("VerifyNo", StringComparison.OrdinalIgnoreCase)));
                         if (stepFlag)
                         {
@@ -197,7 +194,23 @@ namespace CaseConverter
                     #region steps
                     else
                     {
-                        if (col4LowerValue.Equals("LaunchApp", StringComparison.OrdinalIgnoreCase))
+                        if (col4LowerValue.Equals("CloseBrowser", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Close browser");
+                        }
+                        else if (col4LowerValue.Equals("WindowClose", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Close the current window");
+                        }
+                        else if (col4LowerValue.Equals("CloseBrowserTitled", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Close browser which has the title:\"" + col5RawValue + "\"");
+                        }
+                        else if (col4LowerValue.StartsWith("ExportDownload", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Export to download");
+                        }
+                        else if (col4LowerValue.Equals("LaunchApp", StringComparison.OrdinalIgnoreCase))
                         {
                             sbSteps.AppendLine("Launch Aprimo Marketing");
                         }
@@ -213,9 +226,14 @@ namespace CaseConverter
                         {
                             sbSteps.AppendLine("Log off current user");
                         }
-                        else if (col4LowerValue.Equals("EnterData", StringComparison.OrdinalIgnoreCase))
+                        else if (col4LowerValue.Equals("EnterData", StringComparison.OrdinalIgnoreCase) ||
+                            col4LowerValue.Equals("EnterDataNoTab", StringComparison.OrdinalIgnoreCase))
                         {
                             sbSteps.AppendLine("Enter data, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
+                        }
+                        else if (col4LowerValue.Equals("EnterDataWithEnter", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Enter data then press Key Enter, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
                         }
                         else if (col4LowerValue.Equals("EnterComboText", StringComparison.OrdinalIgnoreCase))
                         {
@@ -231,7 +249,23 @@ namespace CaseConverter
                         }
                         else if (col4LowerValue.Equals("SelectItem", StringComparison.OrdinalIgnoreCase))
                         {
-                            sbSteps.AppendLine("Select \"" + col5RawValue + "\"");
+                            sbSteps.AppendLine("Select \"" + col5RawValue + "\"" + " as \"" + col6TranslatedValue + "\"");
+                        }
+                        else if (col4LowerValue.Equals("SelectTree", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Select tree " + col5RawValue + " \"" + col6TranslatedValue + "\"");
+                        }
+                        else if (col4LowerValue.StartsWith("DragNextTo", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Drag next to \"" + col5RawValue + "\"");
+                        }
+                        else if (col4LowerValue.StartsWith("DragOnTo", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Drag \"" + col5RawValue + "\"");
+                        }
+                        else if (col4LowerValue.StartsWith("NodeProcessed", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sbSteps.AppendLine("Node processed \"" + col5RawValue + "\"");
                         }
                         else
                         {
@@ -258,7 +292,32 @@ namespace CaseConverter
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("Found exception, row number:" + row[0].ToString(), ex);
+                    bool notThrow = false;
+                    if (ex.Message != null && ex.Message.Contains("Unhandled col4LowerValue:"))
+                    {
+                        Match m = Regex.Match(ex.Message, "(?<=Unhandled col4LowerValue:)\\w*tree\\w*");
+                        if (m.Success)
+                        {
+                            AddLog("Found col4LowerValue:" + m.Value + ", move original file to folder \"FilesWithIssue\". Will skip this row and continue to process the following rows of this file.");
+                            notThrow = true;
+                            string dirFilesWithIssue = Path.Combine(Environment.CurrentDirectory, "FilesWithIssue");
+                            if (!Directory.Exists(dirFilesWithIssue))
+                            {
+                                Directory.CreateDirectory(dirFilesWithIssue);
+                            }
+                            if (File.Exists(Path.Combine(dirFilesWithIssue, inputData.TableName)))
+                            {
+                                File.Delete(Path.Combine(dirFilesWithIssue, inputData.TableName));
+                            }
+                            File.Copy(Path.Combine(Environment.CurrentDirectory, inputData.TableName), Path.Combine(dirFilesWithIssue, inputData.TableName));
+                            File.Delete(Path.Combine(Environment.CurrentDirectory, inputData.TableName));
+                        }
+                    }
+
+                    if (!notThrow)
+                    {
+                        throw new Exception("Found exception, row number:" + row[0].ToString(), ex);
+                    }
                 }
             }
             result.TableName = inputData.TableName;
@@ -277,7 +336,7 @@ namespace CaseConverter
             return result;
         }
 
-        private static string TranslateCheckPointString(string col5Value, string col6Value, bool isVerifyNo)
+        private static string TranslateCheckPointString(string col4Value, string col5Value, string col6Value, bool isVerifyNo)
         {
             string[] array = col6Value.Split(':');
             string result = null;
@@ -289,25 +348,27 @@ namespace CaseConverter
             {
                 result = "\"" + TranslateColumn5Value(array[0]) + "\"";
             }
-            //string tmp = col5Value;
-            //if (col5Value.Equals("PageContent", StringComparison.OrdinalIgnoreCase))
-            //{
-            //    tmp = "page content";
-            //}
-            //else if (col5Value.Equals("PageTitle", StringComparison.OrdinalIgnoreCase))
-            //{
-            //    tmp = "page title";
-            //}
-            //return "Verify " + tmp + ": " + result + (isVerifyNo? " IS NOT displayed" : " is displayed");
-            return "Verify " + result + (isVerifyNo ? " IS NOT displaying" : " is displaying");
+            if (string.IsNullOrEmpty(col6Value))
+            {
+                result = "\"" + col5Value + "\"";
+            }
+            return "Verify" + (col4Value.Equals("VerifyLink", StringComparison.OrdinalIgnoreCase) ? " link " : " ") + result + (isVerifyNo ? " IS NOT displaying" : " is displaying");
         }
 
-		private static string GetExcelConnectionString(string fileName)
-		{
-			//return "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + fileName + ";Extended Properties=Excel 12.0;";
-			return @"Provider=Microsoft.Jet.OLEDB.4.0;" +
-				   @"Data Source=" + fileName + ";" +
-                   @"Extended Properties='Excel 8.0;IMEX=1;'";
-		}
-	}
+        private static string GetExcelConnectionString(string fileName)
+        {
+            if (fileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+            {
+                return @"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + fileName + ";Extended Properties='Excel 8.0;IMEX=1;'";
+            }
+            else if (fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + fileName + ";Extended Properties='Excel 12.0;IMEX=1;'";
+            }
+            else
+            {
+                throw new Exception("Excel format is not supported, file name:" + fileName);
+            }
+        }
+    }
 }
