@@ -13,6 +13,9 @@ namespace CaseConverter
 {
     public class Utility
     {
+        public const string StrPrefixOfEnterData = "\u2022 ";
+        public const string StrPrefixOfVerifyData = "\u2023 ";
+
         //log
         private static StringBuilder sbLog = new StringBuilder();
 
@@ -149,13 +152,20 @@ namespace CaseConverter
             result.Columns.Add(new DataColumn(Program.ColName1, typeof(string)));
 
             StringBuilder sbSteps = new StringBuilder();
-            StringBuilder sbVerifications = new StringBuilder();
+            //StringBuilder sbVerifications = new StringBuilder();
+            //string col3RawValue = null;
             string col4LowerValue = null;
             string col5RawValue = null;
             string col6RawValue = null;
             string col6TranslatedValue = null;
             bool stepFlag = false;  // true means last row is for steps
             bool verifyFlag = false; // true means last row is of verifications
+            bool isClickItemStep = false;
+            string clickStr = null;
+            string tempStr = null;
+            //string pageName = null;
+            List<string> verifyStrs = new List<string>();
+            List<string> verifyNoStrs = new List<string>();
 
             foreach (DataRow row in inputData.Rows)
             {
@@ -171,16 +181,35 @@ namespace CaseConverter
                     }
                     #endregion
 
+                    //col3RawValue = row[3].ToString();
                     col5RawValue = row[5].ToString();
                     col6RawValue = row[6].ToString();
                     col6TranslatedValue = TranslateColumn5Value(col6RawValue);
+
+                    isClickItemStep = col4LowerValue.StartsWith("ClickItem", StringComparison.OrdinalIgnoreCase);
+
+                    // if the last step is a click item step and the current step is not a click step
+                    // then write this click step. E.g. Click btn1 -> btn2 -> ...
+                    if (clickStr != null && !isClickItemStep)
+                    {
+                        sbSteps.AppendLine(clickStr);
+                        clickStr = null;
+                    }
 
                     #region verifications
                     if (col4LowerValue.StartsWith("Verify", StringComparison.OrdinalIgnoreCase) ||
                         col4LowerValue.StartsWith("ChkPropIncludes", StringComparison.OrdinalIgnoreCase))
                     {
-                        sbVerifications.AppendLine(TranslateCheckPointString(col4LowerValue, col5RawValue, col6RawValue,
-                            col4LowerValue.StartsWith("VerifyNo", StringComparison.OrdinalIgnoreCase)));
+                        tempStr = StrPrefixOfVerifyData + TranslateCheckPointString(col4LowerValue, col5RawValue, col6RawValue);
+                        if (col4LowerValue.StartsWith("VerifyNo", StringComparison.OrdinalIgnoreCase))
+                        {
+                            verifyNoStrs.Add(tempStr);
+                        }
+                        else
+                        {
+                            verifyStrs.Add(tempStr);
+                        }
+
                         if (stepFlag)
                         {
                             // insert all step strings
@@ -229,19 +258,30 @@ namespace CaseConverter
                         else if (col4LowerValue.Equals("EnterData", StringComparison.OrdinalIgnoreCase) ||
                             col4LowerValue.Equals("EnterDataNoTab", StringComparison.OrdinalIgnoreCase))
                         {
-                            sbSteps.AppendLine("Enter data, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
+                            sbSteps.AppendLine(StrPrefixOfEnterData + col5RawValue + ": " + col6TranslatedValue);
                         }
                         else if (col4LowerValue.Equals("EnterDataWithEnter", StringComparison.OrdinalIgnoreCase))
                         {
-                            sbSteps.AppendLine("Enter data then press Key Enter, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
+                            sbSteps.AppendLine(StrPrefixOfEnterData + col5RawValue + ": " + col6TranslatedValue + " (enter data then press Key Enter)");
                         }
                         else if (col4LowerValue.Equals("EnterComboText", StringComparison.OrdinalIgnoreCase))
                         {
                             sbSteps.AppendLine("Select combobox, set \"" + col5RawValue + "\" as \"" + col6TranslatedValue + "\"");
                         }
-                        else if (col4LowerValue.StartsWith("ClickItem", StringComparison.OrdinalIgnoreCase))
+                        else if (isClickItemStep)
                         {
-                            sbSteps.AppendLine("Click \"" + col5RawValue + "\"");
+                            // do not write step for clicking "Login"
+                            if (!col5RawValue.Equals("Login", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (clickStr != null)
+                                {
+                                    clickStr += " -> " + col5RawValue;
+                                }
+                                else
+                                {
+                                    clickStr = "Click " + col5RawValue;
+                                }
+                            }
                         }
                         else if (col4LowerValue.StartsWith("ClickLink", StringComparison.OrdinalIgnoreCase))
                         {
@@ -282,8 +322,9 @@ namespace CaseConverter
                         if (verifyFlag)
                         {
                             // insert all verification strings
-                            result.Rows[result.Rows.Count - 1][1] = sbVerifications.ToString().TrimEnd();
-                            sbVerifications.Clear();
+                            result.Rows[result.Rows.Count - 1][1] = GenerateVerifyStrings(verifyStrs, verifyNoStrs);
+                            verifyStrs.Clear();
+                            verifyNoStrs.Clear();
                         }
                         verifyFlag = false;
                         stepFlag = true;
@@ -319,6 +360,9 @@ namespace CaseConverter
                         throw new Exception("Found exception, row number:" + row[0].ToString(), ex);
                     }
                 }
+
+                // update the current page name
+                //pageName = col3RawValue;
             }
             result.TableName = inputData.TableName;
             return result;
@@ -336,23 +380,41 @@ namespace CaseConverter
             return result;
         }
 
-        private static string TranslateCheckPointString(string col4Value, string col5Value, string col6Value, bool isVerifyNo)
+        private static string TranslateCheckPointString(string col4Value, string col5Value, string col6Value)
         {
             string[] array = col6Value.Split(':');
             string result = null;
             if (array.Length > 1)
             {
-                result = array[0] + ": \"" + TranslateColumn5Value(array[1]) + "\"";
+                result = array[0] + ": " + TranslateColumn5Value(array[1]);
             }
             else
             {
-                result = "\"" + TranslateColumn5Value(array[0]) + "\"";
+                result = col5Value + ": " + TranslateColumn5Value(array[0]);
             }
             if (string.IsNullOrEmpty(col6Value))
             {
-                result = "\"" + col5Value + "\"";
+                result = col5Value;
             }
-            return "Verify" + (col4Value.Equals("VerifyLink", StringComparison.OrdinalIgnoreCase) ? " link " : " ") + result + (isVerifyNo ? " IS NOT displaying" : " is displaying");
+            return (col4Value.Equals("VerifyLink", StringComparison.OrdinalIgnoreCase) ? "link " : "") + result;
+        }
+
+        private static string GenerateVerifyStrings(List<string> verifyStrs, List<string> verifyNoStrs)
+        {
+            StringBuilder sbVerifications = new StringBuilder();
+            string str = "Verify the following value";
+            if (verifyStrs.Count > 0)
+            {
+                sbVerifications.AppendLine(str + (verifyStrs.Count == 1 ? " is" : "s are") + " displaying:");
+                verifyStrs.ForEach(s => sbVerifications.AppendLine(s));
+                sbVerifications.AppendLine("");
+            }
+            if (verifyNoStrs.Count > 0)
+            {
+                sbVerifications.AppendLine(str + (verifyNoStrs.Count == 1 ? " is" : "s are") + " NOT displaying:");
+                verifyNoStrs.ForEach(s => sbVerifications.AppendLine(s));
+            }
+            return sbVerifications.ToString().TrimEnd();
         }
 
         private static string GetExcelConnectionString(string fileName)
