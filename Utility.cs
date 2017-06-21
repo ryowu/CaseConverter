@@ -364,6 +364,25 @@ namespace CaseConverter
                 // update the current page name
                 //pageName = col3RawValue;
             }
+
+            // if the last steps or verifications is not input into the DateTable and all the following rows are skipped (e.g. row[1] == "C")
+            // the last steps or verifications should be processed
+            if (sbSteps.Length != 0 && (verifyStrs.Count != 0 || verifyNoStrs.Count != 0))
+            {
+                throw new Exception(string.Format("Inner error, sbSteps.Length:{0},verifyStrs.Count:{1},verifyNoStrs.Count:{2}", sbSteps.Length, verifyStrs.Count, verifyNoStrs.Count));
+            }
+            if (sbSteps.Length != 0)
+            {
+                result.Rows.Add(sbSteps.ToString().TrimEnd(), "");
+                sbSteps.Clear();
+            }
+            if (verifyStrs.Count != 0 || verifyNoStrs.Count != 0)
+            {
+                result.Rows[result.Rows.Count - 1][1] = GenerateVerifyStrings(verifyStrs, verifyNoStrs);
+                verifyStrs.Clear();
+                verifyNoStrs.Clear();
+            }
+
             result.TableName = inputData.TableName;
             return result;
         }
