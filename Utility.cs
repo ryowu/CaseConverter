@@ -21,7 +21,7 @@ namespace CaseConverter
 
         public static List<string> GetExcelFiles()
         {
-            return Directory.GetFiles(Environment.CurrentDirectory, "*_SSD.xls*").ToList();
+            return Directory.GetFiles(Environment.CurrentDirectory, Program.FileFilter).ToList();
         }
 
         public static void CreateOutputFiles(DataTable dt, string outputFolder)
@@ -153,6 +153,7 @@ namespace CaseConverter
 
             StringBuilder sbSteps = new StringBuilder();
             //StringBuilder sbVerifications = new StringBuilder();
+            string col1RawValue = null;
             //string col3RawValue = null;
             string col4LowerValue = null;
             string col5RawValue = null;
@@ -161,6 +162,7 @@ namespace CaseConverter
             bool stepFlag = false;  // true means last row is for steps
             bool verifyFlag = false; // true means last row is of verifications
             bool isClickItemStep = false;
+            bool isClickItemViewActionStep = false;
             string clickStr = null;
             string tempStr = null;
             //string pageName = null;
@@ -171,11 +173,12 @@ namespace CaseConverter
             {
                 try
                 {
+                    col1RawValue = row[1].ToString().Trim();
                     col4LowerValue = row[4].ToString().Trim().ToLower();
 
                     #region skip specific rows
-                    if (row[1].ToString().Trim().Equals("C", StringComparison.OrdinalIgnoreCase) ||
-                        Program.SkipActions.Any(le => col4LowerValue.StartsWith(le)))
+                    if (Program.SkipTypes.Any(t => col1RawValue.Equals(t, StringComparison.OrdinalIgnoreCase)) ||
+                        Program.SkipActions.Any(a => col4LowerValue.StartsWith(a)))
                     {
                         continue;
                     }
@@ -186,7 +189,18 @@ namespace CaseConverter
                     col6RawValue = row[6].ToString();
                     col6TranslatedValue = TranslateColumn5Value(col6RawValue);
 
+                    // the situation of ClickItem ViewAction "XXXValue" will not be treated as the normal ClickItem steps
                     isClickItemStep = col4LowerValue.StartsWith("ClickItem", StringComparison.OrdinalIgnoreCase);
+                    if (isClickItemStep)
+                    {
+                        isClickItemViewActionStep = col5RawValue.Trim().Equals("ViewAction", StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrEmpty(col6RawValue);
+                        isClickItemStep = isClickItemViewActionStep ? false : true;
+                    }
+                    else
+                    {
+                        isClickItemViewActionStep = false;
+                    }
 
                     // if the last step is a click item step and the current step is not a click step
                     // then write this click step. E.g. Click btn1 -> btn2 -> ...
@@ -283,6 +297,10 @@ namespace CaseConverter
                                 }
                             }
                         }
+                        else if (isClickItemViewActionStep)
+                        {
+                            sbSteps.AppendLine("View detail of \"" + col6TranslatedValue + "\"");
+                        }
                         else if (col4LowerValue.StartsWith("ClickLink", StringComparison.OrdinalIgnoreCase))
                         {
                             sbSteps.AppendLine("Click link \"" + col5RawValue + "\"");
@@ -365,7 +383,15 @@ namespace CaseConverter
                 //pageName = col3RawValue;
             }
 
-            // if the last steps or verifications is not input into the DateTable and all the following rows are skipped (e.g. row[1] == "C")
+            // if the last ClickItem steps are not input into the DateTable and there are not other valid rows below
+            // then write this click step. E.g. Click btn1 -> btn2 -> ...
+            if (clickStr != null)
+            {
+                sbSteps.AppendLine(clickStr);
+                clickStr = null;
+            }
+
+            // if the last steps or verifications are not input into the DateTable and there are not other valid rows below
             // the last steps or verifications should be processed
             if (sbSteps.Length != 0 && (verifyStrs.Count != 0 || verifyNoStrs.Count != 0))
             {

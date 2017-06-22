@@ -12,6 +12,18 @@ namespace CaseConverter
     class Program
     {
         public const string OutputBaseFileName = "outputBase.xls";
+        private static string fileFilter;
+        public static string FileFilter
+        {
+            get
+            {
+                if (fileFilter == null)
+                {
+                    fileFilter = ConfigurationManager.AppSettings["fileFilter"];
+                }
+                return fileFilter;
+            }
+        }
         private static string outputDirName;
         public static string OutputDirName
         {
@@ -70,6 +82,18 @@ namespace CaseConverter
                     defaultSheetName = ConfigurationManager.AppSettings["defaultSheetName"];
                 }
                 return defaultSheetName;
+            }
+        }
+        private static string[] skipTypes;
+        public static string[] SkipTypes
+        {
+            get
+            {
+                if (skipTypes == null)
+                {
+                    skipTypes = ConfigurationManager.AppSettings["skipTypes"].ToLower().Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                }
+                return skipTypes;
             }
         }
         private static string[] skipActions;
